@@ -30,6 +30,32 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | API URL
+    |--------------------------------------------------------------------------
+    |
+    | The URL to the payment API. Used for updating transactions and receiving
+    | event listener calls. Set this in your ".env" file.
+    |
+    */
+
+    'api' => env('API_URL'),
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Event Listener IP
+    |--------------------------------------------------------------------------
+    |
+    | The IP of the event listener server. Used to validate incoming requests
+    | to update orders as being paid.
+    |
+    */
+
+    'event_listener_ip' => env('EVENT_LISTENER_IP', '127.0.0.1'),
+
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Debug Mode
     |--------------------------------------------------------------------------
     |

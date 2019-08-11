@@ -1,0 +1,36 @@
+{
+    "name": "SAGA",
+    "short_name": "SAGA",
+    "start_url": "/",
+    "display": "standalone",
+    "gcm_sender_id": "0000",
+    "background_color": "#FFFFF8",
+    "theme_color": "#8CB84E",
+    "icons": [
+        {
+            "src": "ico/favicon-128.png",
+            "type": "image/png",
+            "sizes": "128x128"
+        },
+        {
+            "src": "ico/icon-512x512.png",
+            "type": "image/png",
+            "sizes": "512x512"
+        },
+        {
+            "src": "ico/apple-touch-icon-152x152.png",
+            "type": "image/png",
+            "sizes": "152x152"
+        },
+        {
+            "src": "ico/mstile-144x144.png",
+            "type": "image/png",
+            "sizes": "144x144"
+        },
+        {
+            "src": "ico/chrome-touch-icon-192x192.png",
+            "type": "image/png",
+            "sizes": "192x192"
+        }
+    ]
+}

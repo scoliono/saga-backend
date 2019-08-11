@@ -7,7 +7,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, Notifiable;
 
@@ -17,7 +17,8 @@ class User extends Authenticatable
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password',
+        'first_name', 'last_name', 'avatar',
+        'btc', 'eth', 'email', 'password', 'gender',
     ];
 
     /**
@@ -35,6 +36,52 @@ class User extends Authenticatable
      * @var array
      */
     protected $casts = [
+        'birthday' => 'datetime',
         'email_verified_at' => 'datetime',
+        'verified' => 'boolean',
     ];
+
+
+    public function getTitle()
+    {
+        switch ($this->gender) {
+            case 'm':
+                return 'Mr.';
+            case 'f':
+                return 'Ms.';
+            default:
+                return null;
+        }
+    }
+
+    public function getFullName()
+    {
+        if ($this->first_name && $this->last_name) {
+            if ($this->middle_name) {
+                return "{$this->first_name} {$this->middle_name} {$this->last_name}";
+            } else {
+                return "{$this->first_name} {$this->middle_name} {$this->last_name}";
+            }
+        } else if ($this->first_name) {
+            return $this->first_name;
+        } else if ($this->last_name) {
+            return ($this->getTitle() ? $this->getTitle() . ' ' : null) . $this->last_name;
+        }
+    }
+
+    public function toArray()
+    {
+        $arr = parent::toArray();
+        if ($this->birthday) {
+            $arr['birthday'] = date_format($this->birthday, 'Y-m-d');
+        }
+        return array_merge($arr, [
+            'full_name' => $this->getFullName(),
+        ]);
+    }
+
+    public function transactions()
+    {
+        return $this->hasMany('App\Transaction', 'from_id');
+    }
 }

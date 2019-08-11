@@ -14,7 +14,6 @@ class AuthController extends Controller
     {
         $rules = Validator::make($request->all(), [
             'email' => 'required|email|string|max:255|unique:users',
-            'name' => 'required|string|max:255',
             'password' => 'required|string|confirmed|min:8',
         ]);
         if ($rules->fails()) {
@@ -25,7 +24,6 @@ class AuthController extends Controller
         }
         $user = User::create([
             'email' => $request->input('email'),
-            'name' => $request->input('name'),
             'password' => Hash::make($request->input('password')),
         ]);
         return response()->json([
