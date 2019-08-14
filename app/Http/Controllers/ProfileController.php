@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use QrCode;
 
 class ProfileController extends Controller
 {
@@ -128,8 +129,7 @@ class ProfileController extends Controller
 
         // See if any plaintext fields were updated
         foreach (array_keys($plaintext_fields) as $field) {
-            if ($user->{$field} === null ||
-                    $user->{$field} !== $request->{$field}) {
+            if ($user->{$field} !== $request->{$field}) {
                 $user->{$field} = $request->{$field};
                 $modified = true;
             }
@@ -165,13 +165,27 @@ class ProfileController extends Controller
             ], 400);
         }
         $user = Auth::user();
-        if ($user->btc === null ||
-                $request->btc !== $user->btc) {
+        if ($request->btc !== $user->btc) {
             $user->btc = $request->btc;
+            if ($request->btc) {
+                $qr = QrCode::format('png')
+                    ->size(500)
+                    ->merge('/storage/btc.png', 0.3)
+                    ->errorCorrection('H')
+                    ->generate('bitcoin:' . $request->btc);
+                Storage::disk('public')->put("userdata/btc/{$request->btc}.png", $qr);
+            }
         }
-        if ($user->eth === null ||
-                $request->eth !== $user->eth) {
+        if ($request->eth !== $user->eth) {
             $user->eth = $request->eth;
+            if ($request->eth) {
+                $qr = QrCode::format('png')
+                    ->size(500)
+                    ->merge('/storage/eth.png', 0.3)
+                    ->errorCorrection('H')
+                    ->generate('ethereum:' . $request->eth);
+                Storage::disk('public')->put("userdata/eth/{$request->eth}.png", $qr);
+            }
         }
         $user->save();
         return response()->json([
