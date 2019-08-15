@@ -9,7 +9,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 
 class TransactionController extends Controller
 {
@@ -35,7 +34,7 @@ class TransactionController extends Controller
             'to_name' => 'required|string',
             'to_email' => 'required|email',
             'to_address' => ['required', new ValidSAGAAddress],
-            'value' => 'required|numeric|min:0.01',
+            'value' => 'required|string|numeric|min:0.01',
             'receipt_list' => 'nullable|string|json',
         ]);
         if ($validate->fails()) {
@@ -105,19 +104,21 @@ class TransactionController extends Controller
                     'errors' => [ 'receipt_list prices don\'t add up to a value of '. $request->value .' SAGA' ],
                 ], 400);
             }
-            $response = $client->request('POST', 'order/create', [
+            $addr = $from->eth ?? $from->btc;
+            $response = $client->request('POST', 'payments', [
                 'form_params' => [
-                    'name' => $request->to_name,
-                    'email' => $request->to_email,
-                    'from_address' => $from->eth,
+                    'name' => $from->getFullName(),
+                    'email' => $from->email,
+                    'from_address' => $addr,
                     'to_address' => $request->to_address,
-                    'value' => $request->value,
+                    'value' => round($request->value, 2),
                     'receipt_list' => $request->receipt_list,
+                    'callback_api' => route('payments.update', ['']),
                 ]
             ]);
             $response = json_decode($response->getBody(), false, 512, JSON_THROW_ON_ERROR);
             $order = Transaction::create([
-                'id' => $response->order_id,
+                'id' => $response->id,
                 'to_name' => $request->to_name,
                 'to_email' => $request->to_email,
                 'from_id' => $from->id,
@@ -126,7 +127,6 @@ class TransactionController extends Controller
                 // I chose $tot here so that extra trailing zeros don't get included.
                 'value' => $tot,
                 'receipt_list' => $receipt,
-                'completed' => false,
             ]);
             Mail::to($request->to_email)->queue(new Invoice($order));
             return response()->json([
@@ -177,6 +177,16 @@ class TransactionController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $validate = Validator::make($request->all(), [
+            'tx_hash' => 'required|size:64',
+        ]);
+        if ($validate->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validate->errors()->all(),
+            ], 400);
+        }
+
         $order = Transaction::find($id);
         if (!$order) {
             return response()->json([
@@ -185,7 +195,7 @@ class TransactionController extends Controller
                 'order_id' => $order->id,
             ], 400);
         }
-        $order->completed = true;
+        $order->tx_hash = $request->tx_hash;
         $order->save();
         return response()->json([
             'success' => true,

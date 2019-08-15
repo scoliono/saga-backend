@@ -20,9 +20,9 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
     ]);
 });
 
-Route::post('/order/{id}/paid', 'TransactionController@update')->middleware('eventlistener');
-Route::post('/order/showall', 'TransactionController@showOrders')->middleware('auth:api');
-Route::post('/order/create', 'TransactionController@create')->middleware('auth:api', 'verified', 'kyc');
+Route::post('/payments/create', 'TransactionController@create')->middleware('auth:api', 'verified', 'kyc');
+Route::get('/payments/all', 'TransactionController@showOrders')->middleware('auth:api');
+Route::patch('/payments/{id}', 'TransactionController@update')->middleware('eventlistener')->name('payments.update');
 
 // Authentication
 Route::post('/login', 'Auth\LoginController@login')->name('login');

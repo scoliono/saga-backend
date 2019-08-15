@@ -19,6 +19,11 @@ class Transaction extends Model
     ];
 
 
+    public function completed()
+    {
+        return $this->tx_hash !== null;
+    }
+
     public function sender()
     {
         return $this->hasOne('App\User', 'id', 'from_id');

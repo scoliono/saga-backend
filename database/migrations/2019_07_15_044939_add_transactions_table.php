@@ -14,21 +14,19 @@ class AddTransactionsTable extends Migration
     public function up()
     {
         Schema::create('transactions', function (Blueprint $table) {
-            $table->string('id', 24)
-                ->unique()
-                ->primary();
+            $table->unsignedBigInteger('id')->primary()->unique();
             $table->unsignedBigInteger('from_id');
             $table->foreign('from_id')
                 ->references('id')
                 ->on('users')
                 ->onDelete('cascade');
             $table->string('to_address');
+            $table->string('to_name');
+            $table->string('to_email');
             // precision needs to be high enough; safer to just use a string rather than decimal
             $table->string('value');
             $table->json('receipt_list');
-            $table->boolean('completed')
-                ->nullable(false)
-                ->default(false);
+            $table->string('tx_hash', 64)->nullable();
             $table->timestamps();
         });
     }
