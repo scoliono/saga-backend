@@ -50,6 +50,12 @@ class ProfileController extends Controller
                 'errors' => $rules->errors()->all(),
             ], 400);
         }
+        if (!$request->file('avatar')->isValid()) {
+            return response()->json([
+                'success' => false,
+                'errors' => 'File was corrupted',
+            ]);
+        }
         $user = Auth::user();
         if ($user->avatar) {
             Storage::disk('public')->delete($user->avatar);
@@ -72,7 +78,8 @@ class ProfileController extends Controller
     public function updateID(Request $request)
     {
         $rules = Validator::make($request->all(), [
-            'id' => 'required|file|image|max:8000',
+            'id' => 'required|array|max:30',
+            'id.*' => 'required|file|image|max:8000'
         ]);
         if ($rules->fails()) {
             return response()->json([
@@ -81,7 +88,15 @@ class ProfileController extends Controller
             ], 400);
         }
         $user = Auth::user();
-        Storage::disk('s3')->putFile("private/{$user->id}", $request->id);
+        foreach ($request->id as $img) {
+            if (!$img->isValid()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => [ 'File "' . $img->path() . '" was corrupted' ],
+                ]);
+            }
+            Storage::putFile("private/{$user->id}", $img);
+        }
 
         return response()->json([
             'success' => true,
