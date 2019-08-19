@@ -20,9 +20,11 @@ class AddTransactionsTable extends Migration
                 ->references('id')
                 ->on('users')
                 ->onDelete('cascade');
+            /* copy of address required since users can always change what
+               addr they send orders with later on. however, the same cannot be said
+               for their real names or emails */
+            $table->string('from_address');
             $table->string('to_address');
-            $table->string('to_name');
-            $table->string('to_email');
             // precision needs to be high enough; safer to just use a string rather than decimal
             $table->string('value');
             $table->json('receipt_list');

@@ -15,7 +15,8 @@ class Transaction extends Model
     ];
 
     protected $fillable = [
-        'to_name', 'to_email', 'id', 'from_id', 'to_address', 'value', 'receipt_list'
+        'to_name', 'to_email', 'id', 'from_id',
+        'from_address', 'to_address', 'value', 'receipt_list'
     ];
 
 

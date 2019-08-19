@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Transaction;
 use App\Mail\Invoice;
-use App\Rules\ValidSAGAAddress;
+use App\Rules\ValidETHAddress;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
@@ -33,7 +33,8 @@ class TransactionController extends Controller
         $validate = Validator::make($request->all(), [
             'to_name' => 'required|string',
             'to_email' => 'required|email',
-            'to_address' => ['required', new ValidSAGAAddress],
+            'from_address' => ['required', new ValidETHAddress],
+            'to_address' => ['required', new ValidETHAddress],
             'value' => 'required|string|numeric|min:0.01',
             'receipt_list' => 'nullable|string|json',
         ]);
@@ -49,10 +50,12 @@ class TransactionController extends Controller
                 'errors' => [ 'You have not verified your email address.' ],
             ], 403);
         }
-        if (!Auth::user()->btc && !Auth::user()->eth) {
+        if (!in_array($request->from_address, Auth::user()->eth())) {
             return response()->json([
                 'success' => false,
-                'errors' => [ 'Your account has no BTC or ETH address set up to receive the payment.' ],
+                'errors' => [ 'The ETH address this order is being sent from is not marked ' .
+                    'as one belonging to this account. Please add it by going to "Edit Profile"' .
+                    'before continuing.' ],
             ], 403);
         }
         if (round($request->value, 2) != $request->value) {
@@ -104,12 +107,11 @@ class TransactionController extends Controller
                     'errors' => [ 'receipt_list prices don\'t add up to a value of '. $request->value .' SAGA' ],
                 ], 400);
             }
-            $addr = $from->eth ?? $from->btc;
             $response = $client->request('POST', 'payments', [
                 'form_params' => [
                     'name' => $from->getFullName(),
                     'email' => $from->email,
-                    'from_address' => $addr,
+                    'from_address' => $request->from_address,
                     'to_address' => $request->to_address,
                     'value' => round($request->value, 2),
                     'receipt_list' => $request->receipt_list,
@@ -122,6 +124,7 @@ class TransactionController extends Controller
                 'to_name' => $request->to_name,
                 'to_email' => $request->to_email,
                 'from_id' => $from->id,
+                'from_address' => $request->from_address,
                 'to_address' => $request->to_address,
                 // Isn't $request->value, but they have to be the same numeric value.
                 // I chose $tot here so that extra trailing zeros don't get included.

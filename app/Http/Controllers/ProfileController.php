@@ -3,9 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\User;
-use App\Rules\ValidBTCAddress;
 use App\Rules\ValidETHAddress;
-use App\Rules\ValidSAGAAddress;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -170,8 +168,8 @@ class ProfileController extends Controller
     public function updateWallets(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'btc' => ['nullable', new ValidBTCAddress],
-            'eth' => ['nullable', new ValidETHAddress],
+            'eth' => 'nullable|array|max:5|distinct',
+            'eth.*' => new ValidETHAddress,
         ]);
         if ($validator->fails()) {
             return response()->json([
@@ -180,26 +178,20 @@ class ProfileController extends Controller
             ], 400);
         }
         $user = Auth::user();
-        if ($request->btc !== $user->btc) {
-            $user->btc = $request->btc;
-            if ($request->btc) {
-                $qr = QrCode::format('png')
-                    ->size(500)
-                    ->merge('/storage/btc.png', 0.3)
-                    ->errorCorrection('H')
-                    ->generate('bitcoin:' . $request->btc);
-                Storage::disk('public')->put("userdata/btc/{$request->btc}.png", $qr);
-            }
+        $eth = [];
+        foreach ($request->eth as $addr) {
+            $eth[] = \str_start($addr, '0x');
         }
-        if ($request->eth !== $user->eth) {
-            $user->eth = $request->eth;
-            if ($request->eth) {
+        $eth = \array_unique($eth);
+        if ($eth !== $user->eth()) {
+            $user->eth = implode(',', $eth);
+            foreach ($eth as $addr) {
                 $qr = QrCode::format('png')
                     ->size(500)
                     ->merge('/storage/eth.png', 0.3)
                     ->errorCorrection('H')
-                    ->generate('ethereum:' . $request->eth);
-                Storage::disk('public')->put("userdata/eth/{$request->eth}.png", $qr);
+                    ->generate("ethereum:$addr");
+                Storage::disk('public')->put("userdata/eth/{$addr}.png", $qr);
             }
         }
         $user->save();

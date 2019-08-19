@@ -69,11 +69,19 @@ class User extends Authenticatable implements MustVerifyEmail
         }
     }
 
+    public function eth()
+    {
+        return $this->eth === null ? null : explode(',', $this->eth);
+    }
+
     public function toArray()
     {
         $arr = parent::toArray();
         if ($this->birthday) {
             $arr['birthday'] = date_format($this->birthday, 'Y-m-d');
+        }
+        if ($this->eth) {
+            $arr['eth'] = $this->eth();
         }
         return array_merge($arr, [
             'full_name' => $this->getFullName(),

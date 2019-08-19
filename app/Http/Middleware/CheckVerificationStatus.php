@@ -3,7 +3,6 @@
 namespace App\Http\Middleware;
 
 use Closure;
-use App\Rules\ValidBTCAddress;
 use App\Rules\ValidETHAddress;
 use App\User;
 use Illuminate\Support\Facades\Auth;
@@ -19,22 +18,14 @@ class CheckVerificationStatus
      */
     protected function validator(User $user)
     {
-        $v = Validator::make($user->toArray(), [
+        return Validator::make($user->toArray(), [
             'first_name' => 'required',
             'last_name' => 'required',
             'gender' => 'required',
-            'btc' => 'required_without:eth',
-            'eth' => 'required_without:btc',
+            'eth' => 'required|array',
+            'eth.*' => new ValidETHAddress,
             'birthday' => 'required|before:13 years ago', // idk
         ]);
-        $v->sometimes('btc', new ValidBTCAddress, function ($input) {
-            return isset($input['btc']);
-        });
-        $v->sometimes('eth', new ValidETHAddress, function ($input) {
-            return isset($input['eth']);
-        });
-
-        return $v;
     }
 
     /**
