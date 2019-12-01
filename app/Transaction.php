@@ -15,8 +15,9 @@ class Transaction extends Model
     ];
 
     protected $fillable = [
-        'to_name', 'to_email', 'id', 'from_id',
-        'from_address', 'to_address', 'value', 'receipt_list'
+        'id',
+        'from_name', 'from_email', 'from_id', 'from_address',
+        'to_id', 'to_address', 'value', 'receipt_list'
     ];
 
 
@@ -25,8 +26,13 @@ class Transaction extends Model
         return $this->tx_hash !== null;
     }
 
-    public function sender()
+    public function customer()
     {
         return $this->hasOne('App\User', 'id', 'from_id');
+    }
+
+    public function merchant()
+    {
+        return $this->hasOne('App\User', 'id', 'to_id');
     }
 }

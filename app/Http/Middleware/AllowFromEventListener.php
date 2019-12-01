@@ -6,6 +6,17 @@ use Closure;
 
 class AllowFromEventListener
 {
+    private $whitelist = [];
+
+    public function __construct()
+    {
+        $this->whitelist[] = config('app.event_listener_ip');
+        if (config('app.env') === 'local') {
+            $this->whitelist[] = '127.0.0.1';
+            $this->whitelist[] = '::1';
+        }
+    }
+
     /**
      * Handle an incoming request.
      *
@@ -17,9 +28,10 @@ class AllowFromEventListener
     {
         // decide with the team later whether to do IP based validation
         // or require some sort of key instead
-        if ($request->ip() === config('app.event_listener_ip')) {
+        if (in_array($request->ip(), $this->whitelist)) {
             return $next($request);
         }
+        dd($request->ip());
         return abort(403);
     }
 }

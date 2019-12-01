@@ -15,7 +15,7 @@ class AddTransactionsTable extends Migration
     {
         Schema::create('transactions', function (Blueprint $table) {
             $table->unsignedBigInteger('id')->primary()->unique();
-            $table->unsignedBigInteger('from_id');
+            $table->unsignedBigInteger('from_id')->nullable(true);
             $table->foreign('from_id')
                 ->references('id')
                 ->on('users')
@@ -24,7 +24,14 @@ class AddTransactionsTable extends Migration
                addr they send orders with later on. however, the same cannot be said
                for their real names or emails */
             $table->string('from_address');
+
+            $table->unsignedBigInteger('to_id');
+            $table->foreign('to_id')
+                ->references('id')
+                ->on('users')
+                ->onDelete('cascade');
             $table->string('to_address');
+
             // precision needs to be high enough; safer to just use a string rather than decimal
             $table->string('value');
             $table->json('receipt_list');

@@ -2,21 +2,16 @@
 
 namespace App\Mail;
 
-use App\Transaction;
+use App\PendingTransaction;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
-class Invoice extends Mailable implements ShouldQueue
+class PendingInvoice extends Mailable
 {
     use Queueable, SerializesModels;
 
-    /**
-     * The Transaction instance.
-     *
-     * @var Transaction
-     */
     public $order;
 
     /**
@@ -24,7 +19,7 @@ class Invoice extends Mailable implements ShouldQueue
      *
      * @return void
      */
-    public function __construct(Transaction $order)
+    public function __construct(PendingTransaction $order)
     {
         $this->order = $order;
     }
@@ -39,6 +34,6 @@ class Invoice extends Mailable implements ShouldQueue
         return $this->subject(
                     'You received an invoice from ' . $this->order->merchant->getFullName() . ' on SAGA'
                 )
-                ->view('emails.invoice');
+                ->view('emails.pending-invoice');
     }
 }

@@ -14,8 +14,8 @@ class AddTransactionToNameEmailColumns extends Migration
     public function up()
     {
         Schema::table('transactions', function (Blueprint $table) {
-            $table->string('to_name')->nullable(false);
-            $table->string('to_email')->nullable(false);
+            $table->string('from_name')->nullable(true);
+            $table->string('from_email')->nullable(true);
         });
     }
 
@@ -27,7 +27,7 @@ class AddTransactionToNameEmailColumns extends Migration
     public function down()
     {
         Schema::table('transactions', function (Blueprint $table) {
-            $table->dropColumn(['to_name', 'to_email']);
+            $table->dropColumn(['from_name', 'from_email']);
         });
     }
 }

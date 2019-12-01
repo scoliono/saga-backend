@@ -8,15 +8,10 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
-class Invoice extends Mailable implements ShouldQueue
+class Receipt extends Mailable
 {
     use Queueable, SerializesModels;
 
-    /**
-     * The Transaction instance.
-     *
-     * @var Transaction
-     */
     public $order;
 
     /**
@@ -36,9 +31,7 @@ class Invoice extends Mailable implements ShouldQueue
      */
     public function build()
     {
-        return $this->subject(
-                    'You received an invoice from ' . $this->order->merchant->getFullName() . ' on SAGA'
-                )
-                ->view('emails.invoice');
+        return $this->subject('Receipt from SAGA')
+                ->view('emails.receipt');
     }
 }
