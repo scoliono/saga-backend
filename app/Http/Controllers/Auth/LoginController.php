@@ -40,20 +40,6 @@ class LoginController extends Controller
     }
 
     /**
-     * Get the failed login response instance.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Symfony\Component\HttpFoundation\Response
-     */
-    protected function sendFailedLoginResponse(Request $request)
-    {
-        return response()->json([
-            'success' => false,
-            'errors' => ['Incorrect email or password.'],
-        ], 401);
-    }
-
-    /**
      * The user has been authenticated.
      *
      * @param \Illuminate\Http\Request  $request

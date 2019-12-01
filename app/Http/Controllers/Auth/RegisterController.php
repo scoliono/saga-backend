@@ -59,14 +59,14 @@ class RegisterController extends Controller
      * The user has been registered.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Http\User  $user
+     * @param  \App\User  $user
      * @return mixed
      */
     protected function registered(Request $request, User $user)
     {
         return response()->json([
             'success' => true,
-            'user' => $user,
+            'user' => $user->toArray(),
             'token' => $user->createToken('saga')->accessToken,
         ]);
     }
