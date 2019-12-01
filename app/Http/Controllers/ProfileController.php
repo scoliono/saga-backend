@@ -183,8 +183,8 @@ class ProfileController extends Controller
             $eth[] = \str_start($addr, '0x');
         }
         $eth = \array_unique($eth);
-        if ($eth !== $user->eth()) {
-            $user->eth = implode(',', $eth);
+        if ($eth !== $user->eth) {
+            $user->eth = $eth;
             foreach ($eth as $addr) {
                 $qr = QrCode::format('png')
                     ->size(500)
@@ -197,6 +197,7 @@ class ProfileController extends Controller
         $user->save();
         return response()->json([
             'success' => true,
+            'eth' => $user->eth,
         ]);
     }
 
@@ -211,7 +212,7 @@ class ProfileController extends Controller
             return response()->json([
                 'success' => false,
                 'errors' => [ $err->getMessage() ]
-            ]);
+            ], 500);
         }
     }
 }
