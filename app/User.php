@@ -2,7 +2,7 @@
 
 namespace App;
 
-use Laravel\Passport\HasApiTokens;
+use Laravel\Airlock\HasApiTokens;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -19,6 +19,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $fillable = [
         'first_name', 'last_name', 'avatar',
         'btc', 'eth', 'email', 'password', 'gender',
+        'phone', 'location', 'merchant'
     ];
 
     /**
@@ -40,6 +41,16 @@ class User extends Authenticatable implements MustVerifyEmail
         'email_verified_at' => 'datetime',
         'verified' => 'boolean',
         'eth' => 'array',
+        'merchant' => 'boolean',
+    ];
+
+    /**
+     * The fields that should be viewable by other users.
+     *
+     * @var array
+     */
+    public static $public = [
+        'full_name', 'avatar', 'phone', 'merchant', 'location', 'eth'
     ];
 
 
@@ -81,12 +92,22 @@ class User extends Authenticatable implements MustVerifyEmail
         ]);
     }
 
-    public function incomingTransactions()
+    /**
+     * Get the orders this user owes money for.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function incomingOrders()
     {
         return $this->hasMany('App\Transaction', 'from_id');
     }
 
-    public function outgoingTransactions()
+    /**
+     * Get the orders this user will receive money for.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function outgoingOrders()
     {
         return $this->hasMany('App\Transaction', 'to_id');
     }

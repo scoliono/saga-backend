@@ -2,20 +2,31 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\PaymentStatusUpdated;
+use App\JWTHelper as API;
 use App\Transaction;
-use App\PendingTransaction;
-use App\Mail\Invoice;
-use App\Mail\PendingInvoice;
+use App\User;
+use App\Mail\InvoiceConfirmation;
 use App\Mail\Receipt;
 use App\Rules\ValidETHAddress;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TransactionController extends Controller
 {
+    private $api;
+
+    public function __construct()
+    {
+        $this->api = new API;
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -40,13 +51,16 @@ class TransactionController extends Controller
             'from_email' => 'required_without:from_id|email',
             'to_address' => ['required', new ValidETHAddress],
             'value' => 'required|string|numeric|min:0.01',
-            'receipt_list' => 'nullable|string|json',
+            'receipt_list' => 'required|string|json',
+            // Discounts should be NEGATIVE (e.g. '-0.2'), taxes or duties should be POSITIVE (e.g. '0.09')
+            'discount_list' => 'nullable|string|json',
+            'memo' => 'nullable|string',
         ]);
 
         if ($validate->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validate->errors()->all(),
+                'errors' => $validate->errors(),
             ], 400);
         }
 
@@ -80,101 +94,103 @@ class TransactionController extends Controller
             ], 400);
         }
 
-        $client = new \GuzzleHttp\Client([
-            'base_uri' => config('app.api'),
-            'timeout' => 3.0,
-        ]);
+        //NOTE: dont use bcmath functions to do calculations, as they don't round off
         try {
             $receipt = json_decode($request->receipt_list, false, 512, JSON_THROW_ON_ERROR);
-            if (sizeof($receipt) < 1) {
+            if (count($receipt) < 1) {
                 return response()->json([
                     'success' => false,
                     'errors' => [ 'receipt_list cannot be empty' ],
                 ], 400);
             }
-            $tot = '0.00';
+            $tot = 0.0;
             foreach ($receipt as $item) {
-                if (!isset($item->name) || !isset($item->price)) {
+                if (!isset($item->name) || !isset($item->quantity) || !isset($item->rate)) {
                     return response()->json([
                         'success' => false,
                         'errors' => [
-                            'receipt_list must have a name and price for every item'
+                            'receipt_list must have a name, rate and quantity for every item'
                         ],
                     ], 400);
-                } else if (!is_numeric($item->price) || $item->price < 0.01) {
+                } else if (!is_numeric($item->rate)) {
                     return response()->json([
                         'success' => false,
-                        'errors' => [ 'receipt_list prices must all be numeric and >= 0.01' ],
+                        'errors' => [ 'receipt_list rates must all be numeric' ],
                     ], 400);
-                } else if (round($item->price, 2) != $item->price) {
+                } else if (round($item->rate, 2) != $item->rate) {
                     return response()->json([
                         'success' => false,
-                        'errors' => [ 'receipt_list prices cannot have more than two decimal places' ],
+                        'errors' => [ 'receipt_list rates cannot have more than two decimal places' ],
+                    ], 400);
+                } else if (!is_numeric($item->quantity) || $item->quantity <= 0) {
+                    return response()->json([
+                        'success' => false,
+                        'errors' => [ 'receipt_list item quantities must be numerical, greater than 0' ],
                     ], 400);
                 } else {
-                    $tot = bcadd($tot, $item->price, 2);
+                    $unit = $item->rate * $item->quantity;
+                    $tot += $unit;
                 }
             }
-            if (bccomp($tot, $request->value, 2) !== 0) {
+            $discounts = null;
+            if ($request->discount_list) {
+                $discounts = json_decode($request->discount_list, false, 512, JSON_THROW_ON_ERROR);
+                $net_discount = 1.0;
+                foreach ($discounts as $discount) {
+                    if (!is_numeric($discount->rate)) {
+                        return response()->json([
+                            'success' => false,
+                            'errors' => [ 'Discounts must be numerical' ],
+                        ], 400);
+                    } else if (round($discount->rate, 4) != $discount->rate) {
+                        return response()->json([
+                            'success' => false,
+                            'errors' => [ 'Discount percentages cannot have more than two decimal places' ],
+                        ]);
+                    } else {
+                        $net_discount += $discount->rate;
+                    }
+                }
+                $tot *= $net_discount;
+            }
+            $tot = round($tot, 2);
+            if ($tot !== round($request->value, 2)) {
                 return response()->json([
                     'success' => false,
-                    'errors' => [ 'receipt_list prices don\'t add up to a value of '. $request->value .' SAGA' ],
+                    'errors' => [ 'Prices and discounts don\'t add up to a value of '. $request->value .' SAGA' ],
                 ], 400);
             }
             if ($from) {
-                $response = $client->request('POST', 'payments', [
-                    \GuzzleHttp\RequestOptions::JSON => [
-                        'customer_name' => $from->getFullName(),
-                        'customer_email' => $from->email,
-                        'customer_address' => $from->eth[0],
-                        'merchant_name' => $to->getFullName(),
-                        'merchant_address' => $request->to_address,
-                        'amount' => round($request->value, 2),
-                        'callback_api' => route('payments.update'),
-                    ], 'headers' => [
-                        'Authorization' => 'Bearer ' . Cache::get('jwt_token'),
-                    ]
+                $order = Transaction::create([
+                    'to_id' => $to->id,
+                    'from_id' => $from->id,
+                    'from_name' => $from->getFullName(),
+                    'from_email' => $from->email,
+                    'from_address' => $from->eth[0],
+                    'to_address' => $request->to_address,
+                    // Isn't $request->value, but they have to be the same numeric value.
+                    // I chose $tot here so that extra trailing zeros don't get included.
+                    'value' => $tot,
+                    'receipt_list' => $receipt,
+                    'discount_list' => $discounts,
+                    'memo' => $request->memo,
                 ]);
-                $json = json_decode($response->getBody(), false, 512, JSON_THROW_ON_ERROR);
-                return response()->json($json);
-                if (isset($json->status) && $json->status === 'success') {
-                    $order = Transaction::create([
-                        'id' => $json->data->id,
-                        'to_id' => $to->id,
-                        'from_id' => $from->id,
-                        'from_name' => $from->getFullName(),
-                        'from_email' => $from->email,
-                        'from_address' => $from->eth[0],
-                        'to_address' => $request->to_address,
-                        // Isn't $request->value, but they have to be the same numeric value.
-                        // I chose $tot here so that extra trailing zeros don't get included.
-                        'value' => $tot,
-                        'receipt_list' => $receipt,
-                    ]);
-                } else {
-                    return response()->json([
-                        'success' => false,
-                        'errors' => [ $json->message ?? 'Unknown backend error' ],
-                    ], 500);
-                }
-                // TODO: tokenize url
-                Mail::to($from->email)->queue(new Invoice($order));
+                Mail::to($from->email)->queue(new InvoiceConfirmation($order));
             } else {
-                $order = PendingTransaction::create([
+                $order = Transaction::create([
                     'to_id' => $to->id,
                     'to_address' => $request->to_address,
                     'from_name' => $request->from_name,
                     'from_email' => $request->from_email,
                     'value' => $tot,
                     'receipt_list' => $receipt,
+                    'discount_list' => $discounts,
+                    'memo' => $request->memo,
                 ]);
-                // TODO: tokenize url
-                Mail::to($request->from_email)->queue(new PendingInvoice($order));
+                Mail::to($request->from_email)->queue(new InvoiceConfirmation($order));
             }
             return response()->json([
                 'success' => true,
-                'order_id' => $order->id,
-                'to_address' => $request->to_address,
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -185,93 +201,36 @@ class TransactionController extends Controller
     }
 
     /**
-     * Show the form for a guest customer to enter their ETH address.
+     * Show the form for a customer to confirm an invoice.
      *
      * @param   \Illuminate\Http\Request  $request
      * @return  \Illuminate\Http\Response
      */
-    public function showCreateGuest(Request $request, $id)
+    public function showConfirmationPage(Request $request, $id)
     {
-        $pt = PendingTransaction::findOrFail($id);
-        return view('createguest', compact('pt'));
+        $tx = Transaction::findOrFail($id);
+        return view('invoiceconfirmation', compact('tx'));
     }
 
     /**
-     * Add the ETH address a guest customer will pay from.
+     * Customer confirms an invoice.
      *
-     * @param   \Illuminate\Http\Request  $request
+     * @param   \Illuminate\Http\Request    $request
      * @return  \Illuminate\Http\Response
      */
-    public function createGuest(Request $request, $id)
+    public function confirm(Request $request, $id)
     {
-        $validate = Validator::make($request->all(), [
-            'from_address' => ['required', new ValidETHAddress],
+        $order = Transaction::findOrFail($id);
+        $response = $this->api->request('POST', 'payments', [
+            'order_id' => $order->id,
+            'receiver' => $order->to_address,
+            'receiver_name' => $order->customer ?
+                $order->customer->getFullName() : $order->from_name,
+            'value' => round($order->value, 2),
+            'symbol' => 'USD',
+            'expire_time' => time() + 30,
         ]);
-
-        $pt = PendingTransaction::findOrFail($id);
-
-        if ($validate->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validate->errors()->all(),
-            ], 400);
-        }
-
-        $client = new \GuzzleHttp\Client([
-            'base_uri' => config('app.api'),
-            'timeout' => 3.0,
-        ]);
-        $response = $client->request('POST', 'payments', [
-            \GuzzleHttp\RequestOptions::JSON => [
-                'customer_name' => $pt->from_name,
-                'customer_address' => $request->from_address,
-                'customer_email' => $pt->from_email,
-                'merchant_name' => $pt->merchant->getFullName(),
-                'merchant_address' => $pt->to_address,
-                'amount' => round($pt->value, 2),
-                'callback_api' => route('payments.update'),
-            ],
-            'headers' => [
-                'Authorization' => 'Bearer ' . Cache::get('jwt_token'),
-            ],
-        ]);
-        try {
-            $json = json_decode($response->getBody(), false, 512, JSON_THROW_ON_ERROR);
-        } catch (Exception $e) {
-            return response()->json([
-                'successs' => false,
-                'errors' => [ $e->getMessage() ],
-            ], 500);
-        }
-
-        if (isset($json->status) && $json->status === 'success') {
-            $transaction = Transaction::create([
-                'id' => $json->data->id,
-                'to_id' => $pt->to_id,
-                'from_name' => $pt->from_name,
-                'from_email' => $pt->from_email,
-                'from_address' => $request->from_address,
-                'to_address' => $pt->to_address,
-                'value' => $pt->value,
-                'receipt_list' => $pt->receipt_list,
-            ]);
-            if ($transaction) {
-                $pt->delete();
-            }
-            session([
-                'customer_name' => null,
-                'customer_email' => null,
-                'amount' => null,
-            ]);
-            return response()->json([
-                'success' => true
-            ], 200);
-        } else {
-            return response()->json([
-                'success' => false,
-                'errors' => [ $json->message ?? 'Unknown backend error' ],
-            ], 500);
-        }
+        return redirect($response->redirect_page);
     }
 
     /**
@@ -280,47 +239,83 @@ class TransactionController extends Controller
      * @param   \Illuminate\Http\Request  $request
      * @return  \Illuminate\Http\Response
      */
-    public function showOrders(Request $request)
+    public function showOutgoingOrders(Request $request)
     {
-        $client = new \GuzzleHttp\Client([
-            'base_uri' => config('app.api'),
-            'timeout' => 3.0,
+        $orders = Auth::user()->outgoingOrders()->latest()->get();
+        foreach ($orders as &$order) {
+            $order->customer = $order->customer
+                ? collect($order->customer->toArray())->only(User::$public)
+                : null;
+        }
+        return response()->json([
+            'success' => true,
+            'orders' => $orders,
         ]);
-        $orders = collect();
-        $order_ids = Auth::user()->outgoingTransactions->pluck('id');
-        try {
-            foreach ($order_ids as $id) {
-                $response = $client->request('GET', "payments/{$id}", [
-                    'headers' => [
-                        'Authorization' => 'Bearer ' . Cache::get('jwt_token'),
-                    ],
-                ]);
-                $json = json_decode($response->getBody(), true, 512, JSON_THROW_ON_ERROR);
-                if (isset($json['status']) && $json['status'] === 'success') {
-                    $t = Transaction::findOrFail($json['data']['id']);
-                    $orders->push(
-                        \array_merge(
-                            \array_except($json['data'], 'callback_url'),
-                            ['receipt_list' => $t->receipt_list]
-                        )
-                    );
-                } else {
-                    return response()->json([
-                        'success' => false,
-                        'errors' => [ $json['message'] ?? 'Unknown backend error' ],
-                    ]);
-                }
-            }
-            return response()->json([
-                'success' => true,
-                'orders' => $orders,
-            ]);
-        } catch (\Exception $e) {
+    }
+
+    /**
+     * List the orders that a user must pay.
+     *
+     * @param   \Illuminate\Http\Request    $request
+     * @return  \Illuminate\Http\Response
+     */
+    public function showIncomingOrders(Request $request)
+    {
+        $orders = Auth::user()->incomingOrders()->latest()->get();
+        foreach ($orders as &$order) {
+            $order->merchant = $order->merchant
+                ? collect($order->merchant->toArray())->only(User::$public)
+                : null;
+        }
+        return response()->json([
+            'success' => true,
+            'orders' => $orders,
+        ]);
+    }
+
+    /**
+     * Export a user's orders within a date range to a CSV file.
+     *
+     * @param   \Illuminate\Http\Request    $request
+     * @return  \Illuminate\Http\Response
+     */
+    public function export(Request $request)
+    {
+        $validate = Validator::make($request->all(), [
+            'start' => 'required|date|before_or_equal:end',
+            'end' => 'required|date|before_or_equal:now',
+        ]);
+
+        if ($validate->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => [ $e->getMessage() ],
-            ], 500);
+                'errors' => $validate->errors()
+            ], 400);
         }
+
+        $tx_list = Auth::user()
+            ->outgoingOrders
+            ->whereBetween('created_at', [$request->start, $request->end])
+            ->toArray();
+
+        $callback = function () use ($tx_list) {
+            $out = fopen('php://output', 'w');
+            foreach ($tx_list as $tx) {
+                fputcsv($out, collect($tx)->flatten()->toArray());
+            }
+            fclose($out);
+        };
+
+        $filename = "SAGA_{$request->start}_{$request->end}.csv";
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Content-Disposition' => "attachment; filename=$filename",
+            'Expires' => '0',
+            'Pragma' => 'no-cache',
+        ];
+
+        return response()->stream($callback, 200, $headers)->send();
     }
 
     /**
@@ -341,7 +336,7 @@ class TransactionController extends Controller
      * @param  string  $id
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request)
+    public function update(Request $request, $id)
     {
         try {
             $json = json_decode($request->getContent(), true, 512, JSON_THROW_ON_ERROR);
@@ -351,9 +346,13 @@ class TransactionController extends Controller
                 'message' => 'Malformed JSON',
             ], 400);
         }
+
         $validate = Validator::make($json, [
-            'tx_hash' => 'required|size:64',
-            'id' => 'exists:transactions',
+            'from' => [ 'required', new ValidETHAddress ],
+            'to' => [ 'required', new ValidETHAddress ],
+            'payment_status' => 'required|string|in:sent,confirmed,expired,failed',
+            'tx_id' => 'required|string',
+            'value' => 'required|string|numeric|min:10000000000000000'
         ]);
         if ($validate->fails()) {
             return response()->json([
@@ -362,13 +361,24 @@ class TransactionController extends Controller
             ], 400);
         }
 
-        $order = Transaction::find($json['id']);
-        $order->tx_hash = $request->tx_hash;
-        $order->save();
+        $order = Transaction::find($id);
+        if (!$order) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "No transaction with id $id",
+            ], 400);
+        }
 
-        Mail::to($order->from_email)
-            ->cc($order->merchant)
-            ->queue(new Receipt($order));
+        event(new PaymentStatusUpdated($order->id, $json));
+        if ($json['payment_status'] === 'confirmed') {
+            $order->tx_hash = $json['tx_id'];
+            $order->from_address = $json['from'];
+            $order->save();
+
+            Mail::to($order->from_email)
+                ->cc($order->merchant)
+                ->queue(new Receipt($order));
+        }
 
         return response()->json([
             'status' => 'success',

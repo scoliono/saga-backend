@@ -45,7 +45,7 @@ class ProfileController extends Controller
         if ($rules->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $rules->errors()->all(),
+                'errors' => $rules->errors(),
             ], 400);
         }
         if (!$request->file('avatar')->isValid()) {
@@ -82,7 +82,7 @@ class ProfileController extends Controller
         if ($rules->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $rules->errors()->all(),
+                'errors' => $rules->errors(),
             ], 400);
         }
         $user = Auth::user();
@@ -99,6 +99,27 @@ class ProfileController extends Controller
         return response()->json([
             'success' => true,
         ]);
+    }
+
+    public function updateContactInfo(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'phone' => ['nullable', 'string', 'max:20'],
+            'location' => ['nullable', 'string', 'max:100']
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 400);
+        }
+        $user = Auth::user();
+        $user->phone = $request->phone;
+        $user->location = $request->location;
+        $user->save();
+        return response()->json([
+            'success' => true,
+        ], 200);
     }
 
     /**
@@ -123,7 +144,7 @@ class ProfileController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()->all(),
+                'errors' => $validator->errors(),
             ], 400);
         }
         $user = Auth::user();
@@ -174,7 +195,7 @@ class ProfileController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()->all(),
+                'errors' => $validator->errors(),
             ], 400);
         }
         $user = Auth::user();

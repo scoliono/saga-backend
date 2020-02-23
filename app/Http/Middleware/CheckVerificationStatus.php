@@ -42,7 +42,7 @@ class CheckVerificationStatus
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
-                    'errors' => $validator->errors()->all(),
+                    'errors' => $validator->errors(),
                 ], 400);
             } else {
                 return $next($request);

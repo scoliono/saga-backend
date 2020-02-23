@@ -48,11 +48,11 @@ class ValidETHAddress implements Rule
 
         // https://github.com/web3j/web3j/pull/134/files#diff-db8702981afff54d3de6a913f13b7be4R42
         for ($i = 0; $i < 40; $i++) {
-            if (ctype_alpha($address{$i})) {
+            if (ctype_alpha($address[$i])) {
                 // Each uppercase letter should correlate with a first bit of 1 in the hash char with the same index,
                 // and each lowercase letter with a 0 bit.
-                $charInt = intval($hash{$i}, 16);
-                if ((ctype_upper($address{$i}) && $charInt <= 7) || (ctype_lower($address{$i}) && $charInt > 7)) {
+                $charInt = intval($hash[$i], 16);
+                if ((ctype_upper($address[$i]) && $charInt <= 7) || (ctype_lower($address[$i]) && $charInt > 7)) {
                     return false;
                 }
             }

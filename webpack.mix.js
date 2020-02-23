@@ -1,6 +1,5 @@
 const mix = require('laravel-mix');
 require('laravel-mix-bundle-analyzer');
-require('laravel-mix-svelte');
 
 /*
  |--------------------------------------------------------------------------
@@ -18,5 +17,4 @@ if (!mix.inProduction()) {
 }
 
 mix.js('resources/js/app.js', 'public/js')
-    .sass('resources/sass/app.scss', 'public/css')
-    .svelte();
+    .sass('resources/sass/app.scss', 'public/css');

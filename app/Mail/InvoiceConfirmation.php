@@ -6,18 +6,15 @@ use App\Transaction;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
-class Invoice extends Mailable implements ShouldQueue
+class InvoiceConfirmation extends Mailable
 {
     use Queueable, SerializesModels;
 
-    /**
-     * The Transaction instance.
-     *
-     * @var Transaction
-     */
     public $order;
+    public $url;
 
     /**
      * Create a new message instance.
@@ -27,6 +24,7 @@ class Invoice extends Mailable implements ShouldQueue
     public function __construct(Transaction $order)
     {
         $this->order = $order;
+        $this->url = URL::signedRoute('payments.confirm', ['id' => $order->id]);
     }
 
     /**
@@ -39,6 +37,6 @@ class Invoice extends Mailable implements ShouldQueue
         return $this->subject(
                     'You received an invoice from ' . $this->order->merchant->getFullName() . ' on SAGA'
                 )
-                ->view('emails.invoice');
+                ->view('emails.invoiceconfirmation');
     }
 }

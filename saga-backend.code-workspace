@@ -4,5 +4,7 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"artisan.serve.defaultHost": "127.0.0.1"
+	}
 }

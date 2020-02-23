@@ -23,13 +23,6 @@ class LoginController extends Controller
     use AuthenticatesUsers;
 
     /**
-     * Where to redirect users after login.
-     *
-     * @var string
-     */
-    protected $redirectTo = '/';
-
-    /**
      * Create a new controller instance.
      *
      * @return void
@@ -48,11 +41,39 @@ class LoginController extends Controller
      */
     protected function authenticated(Request $request, $user)
     {
+        //TODO: doesn't actually matter if user logs in as merchant/customer
         return response()->json([
             'success' => true,
             'user' => $user,
             'token' => $user->createToken('saga')->accessToken,
         ]);
+    }
+
+    protected function validateLogin(Request $request)
+    {
+        $request->validate([
+            $this->username() => 'required|email|string',
+            'password' => 'required|string',
+            'personal' => 'nullable',
+        ]);
+    }
+
+    /**
+     * Get the failed login response instance.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Symfony\Component\HttpFoundation\Response
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    protected function sendFailedLoginResponse(Request $request)
+    {
+        return response()->json([
+            'success' => false,
+            'errors' => [
+                $this->username() => trans('auth.failed'),
+            ]
+        ], 401);
     }
 
     /**
@@ -64,10 +85,6 @@ class LoginController extends Controller
     public function logout(Request $request)
     {
         if (Auth::check()) {
-            if ($token = Auth::user()->token()) {
-                $token->revoke();
-            }
-
             Auth::logout();
 
             $request->session()->invalidate();

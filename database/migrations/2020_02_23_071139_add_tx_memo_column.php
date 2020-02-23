@@ -1,10 +1,10 @@
 <?php
 
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
-class AddTransactionToNameEmailColumns extends Migration
+class AddTxMemoColumn extends Migration
 {
     /**
      * Run the migrations.
@@ -14,8 +14,7 @@ class AddTransactionToNameEmailColumns extends Migration
     public function up()
     {
         Schema::table('transactions', function (Blueprint $table) {
-            $table->string('from_name')->nullable(true);
-            $table->string('from_email')->nullable(true);
+            $table->text('memo')->nullable();
         });
     }
 
@@ -27,7 +26,7 @@ class AddTransactionToNameEmailColumns extends Migration
     public function down()
     {
         Schema::table('transactions', function (Blueprint $table) {
-            $table->dropColumn(['from_name', 'from_email']);
+            $table->dropColumn('memo');
         });
     }
 }

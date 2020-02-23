@@ -3,6 +3,8 @@
 namespace App\Http\Middleware;
 
 use Closure;
+use \Illuminate\Support\Facades\Cache;
+use \Firebase\JWT\JWT;
 
 class AllowFromEventListener
 {
@@ -10,7 +12,6 @@ class AllowFromEventListener
 
     public function __construct()
     {
-        $this->whitelist[] = config('app.event_listener_ip');
         if (config('app.env') === 'local') {
             $this->whitelist[] = '127.0.0.1';
             $this->whitelist[] = '::1';
@@ -26,12 +27,22 @@ class AllowFromEventListener
      */
     public function handle($request, Closure $next)
     {
-        // decide with the team later whether to do IP based validation
-        // or require some sort of key instead
         if (in_array($request->ip(), $this->whitelist)) {
             return $next($request);
         }
-        dd($request->ip());
+
+        $jwt = \str_after($request->header('Authorization'), 'Bearer ');
+        if (!$jwt) {
+            return abort(403);
+        }
+        try {
+            $decoded = JWT::decode($jwt, Cache::get('jwt_client_secret'), ['HS256']);
+        } catch (\Exception $e) {
+            return abort(403);
+        }
+        if ($decoded) {
+            return $next($request);
+        }
         return abort(403);
     }
 }

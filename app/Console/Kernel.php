@@ -14,6 +14,7 @@ class Kernel extends ConsoleKernel
      */
     protected $commands = [
         Commands\RefreshJWTToken::class,
+        Commands\SignInJWTClient::class,
     ];
 
     /**
@@ -24,7 +25,6 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        $schedule->command('jwt:refresh')->daily();
     }
 
     /**
