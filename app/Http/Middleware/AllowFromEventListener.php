@@ -12,6 +12,9 @@ class AllowFromEventListener
 
     public function __construct()
     {
+        if (config('app.api_ip')) {
+            $this->whitelist[] = config('app.api_ip');
+        }
         if (config('app.env') === 'local') {
             $this->whitelist[] = '127.0.0.1';
             $this->whitelist[] = '::1';

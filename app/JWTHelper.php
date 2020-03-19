@@ -4,6 +4,7 @@ namespace App;
 
 use \GuzzleHttp\Client;
 use \GuzzleHttp\RequestOptions;
+use App\Transaction;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 
@@ -34,7 +35,7 @@ class JWTHelper
      * @return object
      * @throws \ErrorException
      */
-    public function request(string $method, string $path, array $args = [])
+    protected function request(string $method, string $path, array $args = [])
     {
         Artisan::call('jwt:refresh');
         $response = $this->client->request($method, $path, [
@@ -51,4 +52,24 @@ class JWTHelper
         }
     }
 
+    /**
+     * Creates an invoice for the daemon to watch for. Returns a
+     * URL for the customer to enter the address he will pay with.
+     *
+     * @param Transaction $tx
+     * @return string
+     */
+    public function createPayment(Transaction $tx)
+    {
+        $response = $this->api->request('POST', 'payments', [
+            'order_id' => $tx->id,
+            'receiver' => $tx->to_address,
+            'receiver_name' => $tx->customer ?
+                $tx->customer->getFullName() : $tx->from_name,
+            'value' => round($tx->value, 2),
+            'symbol' => 'USD',
+            'expire_time' => time() + 30,
+        ]);
+        return $response->redirect_page;
+    }
 }

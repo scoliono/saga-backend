@@ -213,7 +213,8 @@ class TransactionController extends Controller
     }
 
     /**
-     * Customer confirms an invoice.
+     * The customer confirms he will pay the invoice,
+     * so the merchant's info is sent to the event listener daemon.
      *
      * @param   \Illuminate\Http\Request    $request
      * @return  \Illuminate\Http\Response
@@ -221,16 +222,8 @@ class TransactionController extends Controller
     public function confirm(Request $request, $id)
     {
         $order = Transaction::findOrFail($id);
-        $response = $this->api->request('POST', 'payments', [
-            'order_id' => $order->id,
-            'receiver' => $order->to_address,
-            'receiver_name' => $order->customer ?
-                $order->customer->getFullName() : $order->from_name,
-            'value' => round($order->value, 2),
-            'symbol' => 'USD',
-            'expire_time' => time() + 30,
-        ]);
-        return redirect($response->redirect_page);
+        $url = $this->api->createPayment($order);
+        return redirect($url);
     }
 
     /**
