@@ -62,6 +62,7 @@ class VerificationController extends Controller
 
         if ($request->user()->hasVerifiedEmail()) {
             return response()->json([
+                'success' => true,
                 'message' => 'Email is already verified.'
             ], 200);
         }
@@ -70,6 +71,8 @@ class VerificationController extends Controller
             event(new Verified($request->user()));
         }
 
-        return response()->noContent();
+        return response()->json([
+            'success' => true,
+        ], 200);
     }
 }
