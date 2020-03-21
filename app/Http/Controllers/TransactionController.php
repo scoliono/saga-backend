@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -290,11 +291,25 @@ class TransactionController extends Controller
             ->outgoingOrders
             ->whereBetween('created_at', [$request->start, $request->end])
             ->toArray();
+        $cols = Schema::getColumnListing('transactions');
+        $labels = [];
+        foreach ($cols as $col) {
+            $labels[] = __('tx.'. $col);
+        }
 
-        $callback = function () use ($tx_list) {
+        $callback = function () use ($tx_list, $labels, $cols) {
             $out = fopen('php://output', 'w');
+            fputcsv($out, $labels);
             foreach ($tx_list as $tx) {
-                fputcsv($out, collect($tx)->flatten()->toArray());
+                $row = [];
+                foreach ($cols as $col) {
+                    $item = $tx[$col];
+                    if (is_array($item)) {
+                        $item = json_encode($item);
+                    }
+                    $row[] = $item;
+                }
+                fputcsv($out, $row);
             }
             fclose($out);
         };
