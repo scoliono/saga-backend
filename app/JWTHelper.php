@@ -5,6 +5,7 @@ namespace App;
 use \GuzzleHttp\Client;
 use \GuzzleHttp\RequestOptions;
 use App\Transaction;
+use App\Events\PaymentStatusUpdated;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 
@@ -16,6 +17,7 @@ class JWTHelper
      */
 
     private $client;
+    private $client_id;
 
     public function __construct()
     {
@@ -23,6 +25,7 @@ class JWTHelper
             'base_uri' => config('app.api'),
             'timeout' => 10.0,
         ]);
+        $this->client_id = Cache::get('jwt_client_id');
     }
 
     /**
@@ -71,5 +74,32 @@ class JWTHelper
             'expire_time' => time() + 30,
         ]);
         return $response->redirect_page;
+    }
+
+    /**
+     * Gets payment info from the daemon and updates our own
+     * records of the transaction accordingly.
+     * *TEMPORARY*
+     *
+     * @param int $id
+     * @return Transaction
+     */
+    public function getPayment(int $id)
+    {
+        $tx = Transaction::findOrFail($id);
+        $response = $this->request('GET', "payments/{$this->client_id}$id");
+        if ($response->tx_id && !$tx->tx_hash) {
+            $tx->tx_hash = $response->tx_id;
+            $tx->from_address = $response->sender;
+            $tx->save();
+            event(new PaymentStatusUpdated($tx->id, [
+                'payment_status' => 'confirmed',
+                'value' => $tx->value,
+                'from' => $tx->from_address,
+                'to' => $tx->to_address,
+                'tx_id' => $tx->tx_hash
+            ]));
+        }
+        return $tx;
     }
 }

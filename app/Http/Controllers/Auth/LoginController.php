@@ -92,6 +92,7 @@ class LoginController extends Controller
 
         return response()->json([
             'success' => true,
+            'user' => null,
         ]);
     }
 }

@@ -228,14 +228,17 @@ class TransactionController extends Controller
     }
 
     /**
-     * List the orders that a user has sent.
+     * Generate a response from a list of order IDs.
      *
-     * @param   \Illuminate\Http\Request  $request
+     * @param   array   $ids
      * @return  \Illuminate\Http\Response
      */
-    public function showOutgoingOrders(Request $request)
+    private function showOrders($ids)
     {
-        $orders = Auth::user()->outgoingOrders()->latest()->get();
+        $orders = [];
+        foreach ($ids as $id) {
+            $orders[] = $this->api->getPayment($id);
+        }
         foreach ($orders as &$order) {
             $order->customer = $order->customer
                 ? collect($order->customer->toArray())->only(User::$public)
@@ -248,6 +251,19 @@ class TransactionController extends Controller
     }
 
     /**
+     * List the orders that a user has sent.
+     *
+     * @param   \Illuminate\Http\Request  $request
+     * @return  \Illuminate\Http\Response
+     */
+    public function showOutgoingOrders(Request $request)
+    {
+        return $this->showOrders(
+            Auth::user()->outgoingOrders()->latest()->pluck('id')
+        );
+    }
+
+    /**
      * List the orders that a user must pay.
      *
      * @param   \Illuminate\Http\Request    $request
@@ -255,16 +271,9 @@ class TransactionController extends Controller
      */
     public function showIncomingOrders(Request $request)
     {
-        $orders = Auth::user()->incomingOrders()->latest()->get();
-        foreach ($orders as &$order) {
-            $order->merchant = $order->merchant
-                ? collect($order->merchant->toArray())->only(User::$public)
-                : null;
-        }
-        return response()->json([
-            'success' => true,
-            'orders' => $orders,
-        ]);
+        return $this->showOrders(
+            Auth::user()->incomingOrders()->latest()->pluck('id')
+        );
     }
 
     /**
