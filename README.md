@@ -2,7 +2,7 @@
 
 ## Installation
 
-[Install Laravel 5.8 and its requirements](https://laravel.com/docs/5.8/installation#installation) to use this project. Follow the steps under "Server Requirements" and "Configuration."
+[Install Laravel 6 and its requirements](https://laravel.com/docs/6.x/installation#installation) to use this project. Follow the steps under "Server Requirements" and "Configuration."
 
 Make a database running MySQL/MariaDB and grant a user all privileges on it.
 
