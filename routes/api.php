@@ -21,12 +21,12 @@ Route::middleware('auth:airlock')->get('/user', function (Request $request) {
 })->name('user.get');
 
 // tx
-Route::post('/order', 'TransactionController@create')->middleware('auth:airlock', 'verified', 'kyc');
+Route::post('/order/create', 'TransactionController@create')->middleware('auth:airlock', 'verified', 'kyc');
 Route::get('/order/incoming', 'TransactionController@showIncomingOrders')->middleware('auth:airlock');
 Route::get('/order/outgoing', 'TransactionController@showOutgoingOrders')->middleware('auth:airlock');
 Route::get('/order/export', 'TransactionController@export')->middleware('auth:airlock');
-Route::post('/order/{id}/confirm', 'TransactionController@confirm')->middleware('signed')->name('payments.confirm');
-Route::post('/order/{id}', 'TransactionController@update')->middleware('eventlistener')->name('payments.update');
+Route::get('/order/{id}/confirm', 'TransactionController@confirm')->middleware('signed')->name('payments.confirm');
+Route::post('/order', 'TransactionController@update')->middleware('eventlistener')->name('payments.update');
 
 // Authentication
 Route::post('/login', 'Auth\LoginController@login')->name('login');

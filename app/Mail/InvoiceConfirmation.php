@@ -7,6 +7,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
 class InvoiceConfirmation extends Mailable
@@ -24,7 +25,11 @@ class InvoiceConfirmation extends Mailable
     public function __construct(Transaction $order)
     {
         $this->order = $order;
-        $this->url = URL::signedRoute('payments.confirm', ['id' => $order->id]);
+        $this->url = Str::replaceFirst(
+            url('/api'),
+            config('app.frontend_url'),
+            URL::signedRoute('payments.confirm', ['id' => $order->id])
+        );
     }
 
     /**

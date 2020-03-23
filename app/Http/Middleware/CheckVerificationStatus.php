@@ -43,7 +43,7 @@ class CheckVerificationStatus
                 return response()->json([
                     'success' => false,
                     'errors' => $validator->errors(),
-                ], 400);
+                ], 422);
             } else {
                 return $next($request);
             }

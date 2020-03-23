@@ -28,6 +28,11 @@ class JWTHelper
         $this->client_id = Cache::get('jwt_client_id');
     }
 
+    public function client_id()
+    {
+        return $this->client_id;
+    }
+
     /**
      * Make a request to the backend API.
      * Automatically handles JWT tokens.
@@ -64,7 +69,7 @@ class JWTHelper
      */
     public function createPayment(Transaction $tx)
     {
-        $response = $this->api->request('POST', 'payments', [
+        $response = $this->request('POST', 'payments', [
             'order_id' => $tx->id,
             'receiver' => $tx->to_address,
             'receiver_name' => $tx->customer ?
@@ -74,32 +79,5 @@ class JWTHelper
             'expire_time' => time() + 30,
         ]);
         return $response->redirect_page;
-    }
-
-    /**
-     * Gets payment info from the daemon and updates our own
-     * records of the transaction accordingly.
-     * *TEMPORARY*
-     *
-     * @param int $id
-     * @return Transaction
-     */
-    public function getPayment(int $id)
-    {
-        $tx = Transaction::findOrFail($id);
-        $response = $this->request('GET', "payments/{$this->client_id}$id");
-        if ($response->tx_id && !$tx->tx_hash) {
-            $tx->tx_hash = $response->tx_id;
-            $tx->from_address = $response->sender;
-            $tx->save();
-            event(new PaymentStatusUpdated($tx->id, [
-                'payment_status' => 'confirmed',
-                'value' => $tx->value,
-                'from' => $tx->from_address,
-                'to' => $tx->to_address,
-                'tx_id' => $tx->tx_hash
-            ]));
-        }
-        return $tx;
     }
 }

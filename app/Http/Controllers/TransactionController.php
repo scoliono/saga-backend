@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TransactionController extends Controller
@@ -62,7 +63,7 @@ class TransactionController extends Controller
             return response()->json([
                 'success' => false,
                 'errors' => $validate->errors(),
-            ], 400);
+            ], 422);
         }
 
         $to = Auth::user();
@@ -92,7 +93,7 @@ class TransactionController extends Controller
             return response()->json([
                 'success' => false,
                 'errors' => [ 'Total value must not have more than two decimal places' ],
-            ], 400);
+            ], 422);
         }
 
         //NOTE: dont use bcmath functions to do calculations, as they don't round off
@@ -102,7 +103,7 @@ class TransactionController extends Controller
                 return response()->json([
                     'success' => false,
                     'errors' => [ 'receipt_list cannot be empty' ],
-                ], 400);
+                ], 422);
             }
             $tot = 0.0;
             foreach ($receipt as $item) {
@@ -112,22 +113,22 @@ class TransactionController extends Controller
                         'errors' => [
                             'receipt_list must have a name, rate and quantity for every item'
                         ],
-                    ], 400);
+                    ], 422);
                 } else if (!is_numeric($item->rate)) {
                     return response()->json([
                         'success' => false,
                         'errors' => [ 'receipt_list rates must all be numeric' ],
-                    ], 400);
+                    ], 422);
                 } else if (round($item->rate, 2) != $item->rate) {
                     return response()->json([
                         'success' => false,
                         'errors' => [ 'receipt_list rates cannot have more than two decimal places' ],
-                    ], 400);
+                    ], 422);
                 } else if (!is_numeric($item->quantity) || $item->quantity <= 0) {
                     return response()->json([
                         'success' => false,
                         'errors' => [ 'receipt_list item quantities must be numerical, greater than 0' ],
-                    ], 400);
+                    ], 422);
                 } else {
                     $unit = $item->rate * $item->quantity;
                     $tot += $unit;
@@ -142,7 +143,7 @@ class TransactionController extends Controller
                         return response()->json([
                             'success' => false,
                             'errors' => [ 'Discounts must be numerical' ],
-                        ], 400);
+                        ], 422);
                     } else if (round($discount->rate, 4) != $discount->rate) {
                         return response()->json([
                             'success' => false,
@@ -159,7 +160,7 @@ class TransactionController extends Controller
                 return response()->json([
                     'success' => false,
                     'errors' => [ 'Prices and discounts don\'t add up to a value of '. $request->value .' SAGA' ],
-                ], 400);
+                ], 422);
             }
             if ($from) {
                 $order = Transaction::create([
@@ -176,7 +177,8 @@ class TransactionController extends Controller
                     'discount_list' => $discounts,
                     'memo' => $request->memo,
                 ]);
-                Mail::to($from->email)->queue(new InvoiceConfirmation($order));
+                // don't queue until there's a way to notify merchant of failed jobs
+                Mail::to($from->email)->send(new InvoiceConfirmation($order));
             } else {
                 $order = Transaction::create([
                     'to_id' => $to->id,
@@ -188,7 +190,7 @@ class TransactionController extends Controller
                     'discount_list' => $discounts,
                     'memo' => $request->memo,
                 ]);
-                Mail::to($request->from_email)->queue(new InvoiceConfirmation($order));
+                Mail::to($request->from_email)->send(new InvoiceConfirmation($order));
             }
             return response()->json([
                 'success' => true,
@@ -235,10 +237,7 @@ class TransactionController extends Controller
      */
     private function showOrders($ids)
     {
-        $orders = [];
-        foreach ($ids as $id) {
-            $orders[] = $this->api->getPayment($id);
-        }
+        $orders = Transaction::find($ids);
         foreach ($orders as &$order) {
             $order->customer = $order->customer
                 ? collect($order->customer->toArray())->only(User::$public)
@@ -293,7 +292,7 @@ class TransactionController extends Controller
             return response()->json([
                 'success' => false,
                 'errors' => $validate->errors()
-            ], 400);
+            ], 422);
         }
 
         $tx_list = Auth::user()
@@ -353,7 +352,7 @@ class TransactionController extends Controller
      * @param  string  $id
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, $id)
+    public function update(Request $request)
     {
         try {
             $json = json_decode($request->getContent(), true, 512, JSON_THROW_ON_ERROR);
@@ -365,28 +364,30 @@ class TransactionController extends Controller
         }
 
         $validate = Validator::make($json, [
+            'order_id' => 'required|integer',
             'from' => [ 'required', new ValidETHAddress ],
             'to' => [ 'required', new ValidETHAddress ],
-            'payment_status' => 'required|string|in:sent,confirmed,expired,failed',
-            'tx_id' => 'required|string',
-            'value' => 'required|string|numeric|min:10000000000000000'
+            'payment_status' => 'required|string|in:confirmed,expired,failed',
+            'tx_id' => 'required|string|size:66',
+            'value' => 'required|numeric|min:0.01'
         ]);
         if ($validate->fails()) {
             return response()->json([
                 'status' => 'error',
                 'message' => $validate->errors()->first(),
-            ], 400);
+            ], 422);
         }
 
+        $id = Str::after($json['order_id'], $this->api->client_id());
         $order = Transaction::find($id);
         if (!$order) {
             return response()->json([
                 'status' => 'error',
                 'message' => "No transaction with id $id",
-            ], 400);
+            ], 404);
         }
 
-        event(new PaymentStatusUpdated($order->id, $json));
+        event(new PaymentStatusUpdated($order, $json));
         if ($json['payment_status'] === 'confirmed') {
             $order->tx_hash = $json['tx_id'];
             $order->from_address = $json['from'];

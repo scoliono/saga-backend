@@ -15,7 +15,7 @@ class PaymentStatusUpdated implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $order_id;
+    public $order;
     public $update;
     public $signature;
 
@@ -24,9 +24,9 @@ class PaymentStatusUpdated implements ShouldBroadcast
      *
      * @return void
      */
-    public function __construct($order_id, $update)
+    public function __construct($order, $update)
     {
-        $this->order_id = $order_id;
+        $this->order = $order;
         $this->update = $update;
     }
 
@@ -37,6 +37,6 @@ class PaymentStatusUpdated implements ShouldBroadcast
      */
     public function broadcastOn()
     {
-        return new Channel("order.{$this->order_id}");
+        return new Channel("order.{$this->order->id}");
     }
 }

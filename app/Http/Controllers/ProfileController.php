@@ -46,7 +46,7 @@ class ProfileController extends Controller
             return response()->json([
                 'success' => false,
                 'errors' => $rules->errors(),
-            ], 400);
+            ], 422);
         }
         if (!$request->file('avatar')->isValid()) {
             return response()->json([
@@ -83,7 +83,7 @@ class ProfileController extends Controller
             return response()->json([
                 'success' => false,
                 'errors' => $rules->errors(),
-            ], 400);
+            ], 422);
         }
         $user = Auth::user();
         foreach ($request->id as $img) {
@@ -111,7 +111,7 @@ class ProfileController extends Controller
             return response()->json([
                 'success' => false,
                 'errors' => $validator->errors(),
-            ], 400);
+            ], 422);
         }
         $user = Auth::user();
         $user->phone = $request->phone;
@@ -145,7 +145,7 @@ class ProfileController extends Controller
             return response()->json([
                 'success' => false,
                 'errors' => $validator->errors(),
-            ], 400);
+            ], 422);
         }
         $user = Auth::user();
 
@@ -196,7 +196,7 @@ class ProfileController extends Controller
             return response()->json([
                 'success' => false,
                 'errors' => $validator->errors(),
-            ], 400);
+            ], 422);
         }
         $user = Auth::user();
         $eth = [];
