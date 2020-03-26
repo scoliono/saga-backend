@@ -1,41 +1,49 @@
-<p>Your SAGA transaction has been confirmed on {{ $order->updated_at }}</p>
+@component('mail::message')
+# Dear {{ $customer ? $order->from_name : $order->merchant->getFullName() }},
 
-<p>Here is a copy of your receipt:</p>
-<table>
-    <thead>
-        <tr>
-            <th>Description</th>
-            <th>Rate</th>
-            <th>Quantity</th>
-            <th>Amount</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach ($order->receipt_list as $item)
-            <tr>
-                <td>{{ $item['name'] }}</td>
-                <td>{{ $item['rate'] }} SAGA</td>
-                <td>{{ $item['quantity'] }}</td>
-                <td>{{ \round($item['rate'] * $item['quantity'], 2) }} SAGA</td>
-            </tr>
-        @endforeach
-    </tbody>
-</table>
+@if ($customer)
+Your payment to {{ $order->merchant->getFullName() }} ({{ $order->merchant->email }}) was successfully completed at {{ $order->updated_at }}.
+@else
+The customer {{ $order->from_name }} ({{ $order->from_email }}) fulfilled their invoice at {{ $order->updated_at }}.
+@endif
+
+Here is a copy of the receipt:
+
+@component('mail::table')
+| Description | Rate | Quantity | Value |
+|:-----------:|:----:|:--------:|:-----:|
+@foreach ($order->receipt_list as $item)
+| {{ $item['name'] }} | {{ $item['rate'] }} SAGA | {{ $item['quantity'] }} | {{ \round($item['quantity'] * $item['rate'], 2) }} SAGA |
+@endforeach
+@endcomponent
+
 @if ($order->discount_list)
-    <p>The following discounts/fees were applied to the order:</p>
-    <ul>
-        @foreach ($order->discount_list as $discount)
-            <li><strong>{{ $discount['name'] }}</strong>: {{ 100.0 * $discount['rate'] }}%</li>
-        @endforeach
-    </ul>
+The following discounts/fees were applied:
+@foreach ($order->discount_list as $discount)
+    - **{{ $discount['name'] }}**: {{ 100.0 * $discount['rate'] }}%
+@endforeach
 @endif
+
 @if ($order->memo)
-    <p><strong>Memo:</strong> <code>{{ $order->memo }}</code></p>
+**Memo:** {{ $order->memo }}
 @endif
 
-<p>Customer: {{ $order->from_name }} ({{ $order->from_email }}) paying from ETH address {{ $order->from_address }}</p>
-<p>Merchant: {{ $order->merchant->getFullName() }} ({{ $order->merchant->email }}) receiving at ETH address {{ $order->to_address }}</p>
-<p>Amount Due: {{ $order->value }} SAGA</p>
+**Customer**: {{ $order->from_name }} ({{ $order->from_email }}) paying from ETH address {{ $order->from_address }}
 
-<p>If you receive any emails that you suspect are fraudulent, please contact SAGA through our official website, <a href="https://saga.house">https://saga.house</a>.</p>
-<p>This email was automatically sent by SAGA. Please do not reply to it.</p>
+**Merchant:** {{ $order->merchant->getFullName() }} ({{ $order->merchant->email }}) receiving at ETH address {{ $order->to_address }}
+
+## Balance Due
+
+{{ $order->value }} SAGA
+
+All the details of the transaction are available at [SAGA.money]({{ config('app.frontend_url') }}/history).
+
+Regards,<br>
+{{ config('app.name') }}
+
+@slot('subcopy')
+If you receive any emails that you suspect are fraudulent, please contact SAGA through our official website, [SAGA.money]({{ config('app.frontend_url') }}).
+
+This email was automatically sent by SAGA. Please do not reply to it. If you believe you were sent this in error, ignore this message.
+@endslot
+@endcomponent

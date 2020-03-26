@@ -35,4 +35,12 @@ class Transaction extends Model
     {
         return $this->hasOne('App\User', 'id', 'to_id');
     }
+
+    public function toPublicArray()
+    {
+        $arr = $this->toArray();
+        $arr['merchant'] = $this->merchant ? $this->merchant->toPublicArray() : null;
+        $arr['customer'] = $this->customer ? $this->customer->toPublicArray() : null;
+        return $arr;
+    }
 }

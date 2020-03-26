@@ -209,10 +209,19 @@ class TransactionController extends Controller
      * @param   \Illuminate\Http\Request  $request
      * @return  \Illuminate\Http\Response
      */
-    public function showConfirmationPage(Request $request, $id)
+    public function showConfirmation(Request $request, $id)
     {
-        $tx = Transaction::findOrFail($id);
-        return view('invoiceconfirmation', compact('tx'));
+        $tx = Transaction::with('merchant')->findOrFail($id);
+        if ($tx->completed()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This payment has already been completed.',
+            ], 422);
+        }
+        return response()->json([
+            'success' => true,
+            'tx' => $tx->toPublicArray()
+        ]);
     }
 
     /**
@@ -225,8 +234,18 @@ class TransactionController extends Controller
     public function confirm(Request $request, $id)
     {
         $order = Transaction::findOrFail($id);
-        $url = $this->api->createPayment($order);
-        return redirect($url);
+        try {
+            $url = $this->api->createPayment($order);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+        return response()->json([
+            'success' => true,
+            'url' => $url
+        ]);
     }
 
     /**
@@ -240,7 +259,7 @@ class TransactionController extends Controller
         $orders = Transaction::find($ids);
         foreach ($orders as &$order) {
             $order->customer = $order->customer
-                ? collect($order->customer->toArray())->only(User::$public)
+                ? collect($order->customer->toPublicArray())
                 : null;
         }
         return response()->json([
@@ -394,8 +413,10 @@ class TransactionController extends Controller
             $order->save();
 
             Mail::to($order->from_email)
-                ->cc($order->merchant)
-                ->queue(new Receipt($order));
+                ->send(new Receipt($order, true));
+
+            Mail::to($order->merchant)
+                ->send(new Receipt($order, false));
         }
 
         return response()->json([

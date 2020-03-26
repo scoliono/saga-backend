@@ -50,7 +50,7 @@ class User extends Authenticatable implements MustVerifyEmail
      *
      * @var array
      */
-    public static $public = [
+    protected $public = [
         'full_name', 'avatar', 'phone', 'merchant', 'location', 'eth'
     ];
 
@@ -91,6 +91,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return array_merge($arr, [
             'full_name' => $this->getFullName(),
         ]);
+    }
+
+    public function toPublicArray()
+    {
+        return collect($this->toArray())->only($this->public);
     }
 
     /**

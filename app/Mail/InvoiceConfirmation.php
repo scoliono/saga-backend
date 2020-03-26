@@ -42,6 +42,6 @@ class InvoiceConfirmation extends Mailable
         return $this->subject(
                     'You received an invoice from ' . $this->order->merchant->getFullName() . ' on SAGA'
                 )
-                ->view('emails.invoiceconfirmation');
+                ->markdown('emails.invoiceconfirmation');
     }
 }

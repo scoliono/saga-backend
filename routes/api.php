@@ -25,7 +25,8 @@ Route::post('/order/create', 'TransactionController@create')->middleware('auth:a
 Route::get('/order/incoming', 'TransactionController@showIncomingOrders')->middleware('auth:airlock');
 Route::get('/order/outgoing', 'TransactionController@showOutgoingOrders')->middleware('auth:airlock');
 Route::get('/order/export', 'TransactionController@export')->middleware('auth:airlock');
-Route::get('/order/{id}/confirm', 'TransactionController@confirm')->middleware('signed')->name('payments.confirm');
+Route::get('/order/{id}/confirm', 'TransactionController@showConfirmation')->middleware('signed')->name('payments.confirm');
+Route::post('/order/{id}/confirm', 'TransactionController@confirm')->middleware('signed')->name('payments.confirm');
 Route::post('/order', 'TransactionController@update')->middleware('eventlistener')->name('payments.update');
 
 // Authentication
