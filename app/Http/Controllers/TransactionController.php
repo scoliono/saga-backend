@@ -81,14 +81,14 @@ class TransactionController extends Controller
                 'errors' => [ 'The other party has not verified their email address and identity.' ],
             ], 403);
         }
-        if (!in_array($request->to_address, Auth::user()->eth)) {
+        /*if (!in_array($request->to_address, Auth::user()->eth)) {
             return response()->json([
                 'success' => false,
                 'errors' => [ 'The ETH address this order is being sent from is not marked ' .
                     'as one belonging to this account. Please add it by going to "Edit Profile"' .
                     'before continuing.' ],
             ], 403);
-        }
+        }*/
         if (round($request->value, 2) != $request->value) {
             return response()->json([
                 'success' => false,
@@ -168,7 +168,7 @@ class TransactionController extends Controller
                     'from_id' => $from->id,
                     'from_name' => $from->getFullName(),
                     'from_email' => $from->email,
-                    'from_address' => $from->eth[0],
+                    'from_address' => $request->from_address,
                     'to_address' => $request->to_address,
                     // Isn't $request->value, but they have to be the same numeric value.
                     // I chose $tot here so that extra trailing zeros don't get included.
