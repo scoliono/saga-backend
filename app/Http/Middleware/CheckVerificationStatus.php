@@ -22,8 +22,8 @@ class CheckVerificationStatus
             'first_name' => 'required',
             'last_name' => 'required',
             'gender' => 'required',
-            //'eth' => 'required|array',
-            //'eth.*' => new ValidETHAddress,
+            'eth' => 'required|array',
+            'eth.*' => new ValidETHAddress,
             'birthday' => 'required|before:13 years ago', // idk
         ]);
     }
@@ -38,15 +38,15 @@ class CheckVerificationStatus
     public function handle($request, Closure $next)
     {
         if (Auth::user()->verified) {
-            $validator = $this->validator(Auth::user());
+            /*$validator = $this->validator(Auth::user());
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
                     'errors' => $validator->errors(),
                 ], 422);
-            } else {
+            } else {*/
                 return $next($request);
-            }
+            //}
         } else {
             return response()->json([
                 'success' => false,
