@@ -22,8 +22,8 @@ class CheckVerificationStatus
             'first_name' => 'required',
             'last_name' => 'required',
             'gender' => 'required',
-            'eth' => 'required|array',
-            'eth.*' => new ValidETHAddress,
+            //'eth' => 'required|array',
+            //'eth.*' => new ValidETHAddress,
             'birthday' => 'required|before:13 years ago', // idk
         ]);
     }
@@ -54,7 +54,7 @@ class CheckVerificationStatus
                     'You cannot complete this action because your ' .
                     'personal information has not yet been verified.'
                 ]
-            ], 401);
+            ], 403);
         }
     }
 }
