@@ -189,8 +189,8 @@ class ProfileController extends Controller
     public function updateWallets(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'eth' => 'nullable|array|max:5|distinct',
-            'eth.*' => new ValidETHAddress,
+            'eth' => 'nullable|array|max:5',
+            'eth.*' => ['distinct', new ValidETHAddress],
         ]);
         if ($validator->fails()) {
             return response()->json([
@@ -200,8 +200,10 @@ class ProfileController extends Controller
         }
         $user = Auth::user();
         $eth = [];
-        foreach ($request->eth as $addr) {
-            $eth[] = \str_start($addr, '0x');
+        if ($request->eth) {
+            foreach ($request->eth as $addr) {
+                $eth[] = \str_start($addr, '0x');
+            }
         }
         $eth = \array_unique($eth);
         if ($eth !== $user->eth) {
