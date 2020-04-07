@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 |
 */
 
-Route::middleware('auth:airlock')->get('/user', function (Request $request) {
+Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return response()->json([
         'success' => true,
         'user' => $request->user(),
@@ -21,10 +21,10 @@ Route::middleware('auth:airlock')->get('/user', function (Request $request) {
 })->name('user.get');
 
 // tx
-Route::post('/order/create', 'TransactionController@create')->middleware('auth:airlock', 'verified', 'kyc');
-Route::get('/order/incoming', 'TransactionController@showIncomingOrders')->middleware('auth:airlock');
-Route::get('/order/outgoing', 'TransactionController@showOutgoingOrders')->middleware('auth:airlock');
-Route::get('/order/export', 'TransactionController@export')->middleware('auth:airlock');
+Route::post('/order/create', 'TransactionController@create')->middleware('auth:sanctum', 'verified', 'kyc');
+Route::get('/order/incoming', 'TransactionController@showIncomingOrders')->middleware('auth:sanctum');
+Route::get('/order/outgoing', 'TransactionController@showOutgoingOrders')->middleware('auth:sanctum');
+Route::get('/order/export', 'TransactionController@export')->middleware('auth:sanctum');
 Route::get('/order/{id}/confirm', 'TransactionController@showConfirmation')->middleware('signed')->name('payments.confirm');
 Route::post('/order/{id}/confirm', 'TransactionController@confirm')->middleware('signed')->name('payments.confirm');
 Route::post('/order', 'TransactionController@update')->middleware('eventlistener')->name('payments.update');
@@ -43,9 +43,9 @@ Route::get('/email/verify/{id}/{hash}', 'Auth\VerificationController@verify')->n
 Route::post('/email/resend', 'Auth\VerificationController@resend')->name('verification.resend');
 
 // Profile settings
-Route::post('/profile/avatar', 'ProfileController@updateAvatar')->middleware('auth:airlock');
-Route::delete('/profile/avatar', 'ProfileController@clearAvatar')->middleware('auth:airlock');
-Route::post('/profile/id', 'ProfileController@updateID')->middleware('auth:airlock');
-Route::post('/profile/personal', 'ProfileController@updateInfo')->middleware('auth:airlock');
-Route::post('/profile/contact', 'ProfileController@updateContactInfo')->middleware('auth:airlock');
-Route::post('/profile/wallets', 'ProfileController@updateWallets')->middleware('auth:airlock');
+Route::post('/profile/avatar', 'ProfileController@updateAvatar')->middleware('auth:sanctum');
+Route::delete('/profile/avatar', 'ProfileController@clearAvatar')->middleware('auth:sanctum');
+Route::post('/profile/id', 'ProfileController@updateID')->middleware('auth:sanctum');
+Route::post('/profile/personal', 'ProfileController@updateInfo')->middleware('auth:sanctum');
+Route::post('/profile/contact', 'ProfileController@updateContactInfo')->middleware('auth:sanctum');
+Route::post('/profile/wallets', 'ProfileController@updateWallets')->middleware('auth:sanctum');

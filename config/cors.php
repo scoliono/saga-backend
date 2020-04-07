@@ -21,7 +21,7 @@ return [
      * You can enable CORS for 1 or multiple paths.
      * Example: ['api/*']
      */
-    'paths' => ['airlock/csrf-cookie', 'api/*'],
+    'paths' => ['sanctum/csrf-cookie', 'api/*'],
 
     /*
     * Matches the request method. `[*]` allows all methods.
@@ -31,7 +31,7 @@ return [
     /*
      * Matches the request origin. `[*]` allows all origins.
      */
-    'allowed_origins' => explode(',', env('AIRLOCK_STATEFUL_DOMAINS', 'localhost')),
+    'allowed_origins' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', 'localhost')),
 
     /*
      * Matches the request origin with, similar to `Request::is()`
